@@ -7,6 +7,8 @@ import lombok.extern.log4j.Log4j2;
 import org.antlr.v4.runtime.misc.LogManager;
 import org.springframework.stereotype.Repository;
 
+import java.util.UUID;
+
 @Repository
 @Log4j2
 @RequiredArgsConstructor
@@ -19,5 +21,14 @@ public class PautaInfraRepository implements PautaRepository {
         pautaSpringDataJPARepository.save(pauta);
         log.info("[finish] PautaInfraRepository - salva");
         return pauta;
+    }
+
+    @Override
+    public Pauta buscaPautaPorID(UUID idPauta) {
+        log.info("[start] PautaInfraRepository - buscaPautaPorID");
+        Pauta pautaPorId = pautaSpringDataJPARepository.findById(idPauta)
+                .orElseThrow(() -> new RuntimeException("Pauta não encontrada"));
+        log.info("[finish] PautaInfraRepository - buscaPautaPorID");
+        return pautaPorId;
     }
 }
