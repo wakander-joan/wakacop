@@ -2,6 +2,7 @@ package academy.wakanda.wakacop.sessaovotacao.domain;
 
 
 import academy.wakanda.wakacop.pauta.domain.Pauta;
+import academy.wakanda.wakacop.sessaovotacao.application.api.ResultadoSessaoResponse;
 import academy.wakanda.wakacop.sessaovotacao.application.api.SessaoAberturaRequest;
 import academy.wakanda.wakacop.sessaovotacao.application.api.VotoRequest;
 import jakarta.persistence.*;
@@ -14,6 +15,7 @@ import org.hibernate.annotations.LazyCollectionOption;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 @Getter
@@ -27,9 +29,10 @@ public class SessaoVotacao {
     private UUID id;
     private UUID idPauta;
     private Integer tempoDuracao;
+    @Enumerated(EnumType.STRING)
     private StatusSessaoVotacao status;
-    private LocalDateTime dataAbertura;
-    private LocalDateTime dataEncerramento;
+    private LocalDateTime momentoAbertura;
+    private LocalDateTime momentoEncerramento;
 
     @OneToMany(
             mappedBy = "sessaoVotacao",
@@ -37,13 +40,13 @@ public class SessaoVotacao {
             orphanRemoval = true)
     @LazyCollection(LazyCollectionOption.FALSE)
     @MapKey(name = "cpfAssociado")
-    private HashMap<String, VotoPauta> votos;
+    private Map<String, VotoPauta> votos;
 
     public SessaoVotacao(SessaoAberturaRequest sessaoAberturaRequest,  Pauta pauta) {
         this.idPauta = pauta.getId();
         this.tempoDuracao = sessaoAberturaRequest.getTempoDuracao().orElse(1);
-        this.dataAbertura = LocalDateTime.now();
-        this.dataEncerramento = dataAbertura.plusMinutes(this.tempoDuracao);
+        this.momentoAbertura = LocalDateTime.now();
+        this.momentoEncerramento = momentoAbertura.plusMinutes(this.tempoDuracao);
         this.status = StatusSessaoVotacao.ABERTA;
         this.votos = new HashMap<>();
     }
@@ -71,7 +74,7 @@ public class SessaoVotacao {
 
     private void atualizaStatus() {
         if (this.status.equals(StatusSessaoVotacao.ABERTA)){
-            if (LocalDateTime.now().isAfter(this.dataEncerramento)){
+            if (LocalDateTime.now().isAfter(this.momentoEncerramento)){
                 fechaSessao();
             }
         }
@@ -79,5 +82,25 @@ public class SessaoVotacao {
 
     private void fechaSessao() {
         this.status = StatusSessaoVotacao.FECHADA;
+    }
+
+    public ResultadoSessaoResponse obtemResultado(){
+        atualizaStatus();
+        return new ResultadoSessaoResponse(this);
+    }
+    public Long getTotalVotos() {
+        return Long.valueOf(this.votos.size());
+    }
+
+    public Long getTotalSim() {
+        return calculaVotosPorOpcao(OpcaoVoto.SIM);
+    }
+    public Long getTotalNao() {
+        return calculaVotosPorOpcao(OpcaoVoto.NAO);
+    }
+    private Long calculaVotosPorOpcao(OpcaoVoto opcaoVoto) {
+        return votos.values().stream()
+                .filter(voto -> voto.opcaoIgual(opcaoVoto))
+                .count();
     }
 }
